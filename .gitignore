@@ -3,3 +3,21 @@ videos/
 *.avi
 *.mov
 
+# Ignore virtual environments
+.venv/
+env/
+
+# Ignore model weights
+*.pth
+*.pkl
+
+# Ignore videos or large media
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Other unnecessary files
+__pycache__/
+*.pyc
+.DS_Store
