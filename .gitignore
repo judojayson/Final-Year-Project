@@ -1,17 +1,11 @@
-# Ignore virtual environments
+# .gitignore
+.vscode/
 .venv/
-
-# Ignore large model files
+__pycache__/
 *.pth
 *.pkl
-
-# Ignore heavy binaries
-*.dll
-*.lib
-*.pyd
-
-# Ignore media
 *.mp4
 *.avi
 *.mov
-*.mkv
+*.mpeg
+videos/
