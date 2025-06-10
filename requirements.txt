@@ -1,0 +1,14 @@
+streamlit
+torch
+torchvision
+opencv-python
+mediapipe
+numpy
+pandas
+Pillow
+joblib
+plotly
+st-aggrid
+seaborn
+matplotlib
+google-generativeai
