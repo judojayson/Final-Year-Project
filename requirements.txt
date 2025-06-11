@@ -13,4 +13,5 @@ matplotlib
 seaborn
 tqdm
 timm
+gdown
 
