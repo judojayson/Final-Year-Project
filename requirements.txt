@@ -12,4 +12,5 @@ streamlit-aggrid
 matplotlib
 seaborn
 tqdm
+timm
 
