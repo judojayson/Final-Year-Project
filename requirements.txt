@@ -2,13 +2,12 @@ streamlit
 torch
 torchvision
 opencv-python
-mediapipe
-numpy
+mediapipe==0.10.21
 pandas
+numpy
 Pillow
 joblib
 plotly
-st-aggrid
-seaborn
+streamlit-aggrid
 matplotlib
-google-generativeai
+seaborn
