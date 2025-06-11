@@ -14,5 +14,5 @@ seaborn
 tqdm
 timm
 gdown
-python-3.10
+
 
