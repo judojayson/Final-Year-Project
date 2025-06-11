@@ -14,5 +14,6 @@ seaborn
 tqdm
 timm
 gdown
+scikit-learn
 
 
