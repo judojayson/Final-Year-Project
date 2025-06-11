@@ -1,6 +1,7 @@
 import streamlit as st
-import tempfile
 import os
+import gdown
+import tempfile
 import joblib
 import time
 import numpy as np
@@ -12,6 +13,22 @@ import torch
 from torchvision import transforms
 from st_aggrid import AgGrid, GridOptionsBuilder
 
+# === Download Models if Missing ===
+MODEL_FILES = {
+    "alzheimers_vit_project/vit_alzheimer.pth": "1YRfI6G8GOu06PPNoNmnU7V6ktNbswn2E",
+    "alzheimers_vit_project/cnn_alzheimer.pth": "101GGuFDl2SJ3cDycLLi085eKe9cek-Iu",
+    "gait_project_66/models/gait_model_keras.h5": "1pPxVREVL2lNcp2LksRaFSojSOxK1Bi4E",
+    "gait_project_66/models/scaler.pkl": "1ckwlble4t4_NBv2A8GDzXHo4bcmxN8R8",
+    "gait_project_66/models/simple_gait_model.pkl": "1_1deQKdHoF22PWGnqa0so0XrDZk72XK1",
+    "gait_project_66/models/simple_gait_model_metrics.txt": "13nOp41BLhTkXiHPkGVoQQ9k0jOCKbb3s"
+}
+
+for filepath, file_id in MODEL_FILES.items():
+    if not os.path.exists(filepath):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        gdown.download(f"https://drive.google.com/uc?id={file_id}", filepath, quiet=False)
+
+# === Import Project Modules ===
 from gait_project_66.scripts.predict_video import predict_gait_from_video
 from gait_project_66.scripts.extract_gait_features import extract_features_from_video
 from alzheimers_vit_project.model_vit import get_vit_model
@@ -19,11 +36,11 @@ from alzheimers_vit_project.grad_cam import ViTGradCAM
 from alzheimers_vit_project.model_cnn import SimpleCNN
 from alzheimers_vit_project.grad_cam_cnn import CNNGradCAM
 
-# Page config
+# === Page Config ===
 st.set_page_config(page_title="Alzheimer’s Predictor", layout="wide", page_icon="🧠")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load models
+# === Load Models ===
 vit_model = get_vit_model(num_classes=4)
 vit_model.load_state_dict(torch.load("alzheimers_vit_project/vit_alzheimer.pth", map_location=device))
 vit_model.to(device).eval()
@@ -35,14 +52,14 @@ cnn_model.to(device).eval()
 simple_gait_model = joblib.load("gait_project_66/models/simple_gait_model.pkl")
 class_labels = ['Demented', 'Mild Dementia', 'Non Demented', 'Very mild Dementia']
 
-# Accuracy file
+# === Accuracy ===
 metrics_file = "gait_project_66/models/simple_gait_model_metrics.txt"
 simple_accuracy = "N/A"
 if os.path.exists(metrics_file):
     with open(metrics_file, "r") as f:
         simple_accuracy = f.readline().split(":")[1].strip()
 
-# UI
+# === UI Layout ===
 st.title("🧠 Alzheimer’s Prediction from MRI & Gait")
 mode = st.radio("Choose Input Type", ["MRI only", "Gait only", "Both"], horizontal=True)
 
@@ -50,7 +67,7 @@ col1, col2 = st.columns(2)
 mri_file = col1.file_uploader("🧠 Upload Brain MRI", type=["jpg", "jpeg", "png"]) if mode != "Gait only" else None
 video_file = col2.file_uploader("🏃 Upload Gait Video", type=["mp4", "avi", "mov", "mpeg"]) if mode != "MRI only" else None
 
-# Initialize
+# === Initialize Variables ===
 vit_conf = cnn_conf = conf1 = simple_conf = 0
 vit_accuracy, cnn_accuracy = 94.5, 91.2
 vit_time = cnn_time = transformer_time = simple_time = 0
@@ -94,7 +111,7 @@ if st.button("🔍 Run Prediction"):
             cnn_cam = CNNGradCAM(cnn_model, cnn_model.features[-3]).generate(tensor_img, class_idx=cnn_idx)
             cnn_overlay = cv2.addWeighted(cv2.applyColorMap(np.uint8(255 * cnn_cam), cv2.COLORMAP_JET), 0.5, img_np, 0.5, 0)
 
-            # Table
+            # Display Table + Heatmaps
             mri_df = pd.DataFrame({
                 "Model": ["ViT", "CNN"],
                 "Prediction": [vit_pred, cnn_pred],
@@ -106,7 +123,6 @@ if st.button("🔍 Run Prediction"):
             gb = GridOptionsBuilder.from_dataframe(mri_df)
             gb.configure_default_column(resizable=True, wrapText=True)
             AgGrid(mri_df, gridOptions=gb.build(), height=200)
-
             st.image([vit_overlay, cnn_overlay], caption=["ViT Grad-CAM", "CNN Grad-CAM"], use_container_width=True)
 
     # === Gait Prediction ===
@@ -148,10 +164,9 @@ if st.button("🔍 Run Prediction"):
             gb.configure_default_column(resizable=True, wrapText=True)
             AgGrid(gait_df, gridOptions=gb.build(), height=200)
 
-    # === Combined Bar + Table + Line ===
+    # === Combined Comparison ===
     if mri_file and video_file and mode == "Both":
         st.markdown("## 📊 Combined Model Comparison")
-
         combined_df = pd.DataFrame({
             "Model": ["ViT", "CNN", "Transformer Gait", "Logistic Regression Gait"],
             "Confidence (%)": [vit_conf, cnn_conf, conf1, simple_conf],
@@ -159,37 +174,30 @@ if st.button("🔍 Run Prediction"):
             "Time (s)": [vit_time, cnn_time, transformer_time, simple_time]
         })
 
-        # Bar chart
+        # Bar Chart
         fig_bar = go.Figure(data=[
-            go.Bar(name="Confidence (%)", x=combined_df["Model"], y=combined_df["Confidence (%)"], marker_color="lightskyblue"),
-            go.Bar(name="Accuracy (%)", x=combined_df["Model"], y=combined_df["Accuracy (%)"], marker_color="lightgreen"),
-            go.Bar(name="Time (s)", x=combined_df["Model"], y=combined_df["Time (s)"], marker_color="lightcoral")
+            go.Bar(name="Confidence (%)", x=combined_df["Model"], y=combined_df["Confidence (%)"]),
+            go.Bar(name="Accuracy (%)", x=combined_df["Model"], y=combined_df["Accuracy (%)"]),
+            go.Bar(name="Time (s)", x=combined_df["Model"], y=combined_df["Time (s)"]),
         ])
         fig_bar.update_layout(barmode='group', yaxis_title="Value", height=400)
         st.plotly_chart(fig_bar)
 
-        # === Combined Table ===
+        # Table
         st.markdown("### 📋 Combined Table")
-
         grid_options = GridOptionsBuilder.from_dataframe(combined_df)
         grid_options.configure_default_column(resizable=True, wrapText=True, autoHeight=True)
-        grid_options.configure_grid_options(domLayout='normal')
         grid_options.configure_column("Model", cellStyle={'color': 'blue', 'fontWeight': 'bold'})
-
         AgGrid(
             combined_df,
             gridOptions=grid_options.build(),
             height=350,
-            width='100%',
             fit_columns_on_grid_load=True,
-            allow_unsafe_jscode=True,
-            enable_enterprise_modules=False,
-            theme='streamlit',
         )
 
-        # Line graph
+        # Line Graph
         st.markdown("### 📈 Line Graph")
-        selected_metrics = st.multiselect("Select metrics to compare", ["Confidence (%)", "Accuracy (%)", "Time (s)"],
+        selected_metrics = st.multiselect("Select metrics", ["Confidence (%)", "Accuracy (%)", "Time (s)"],
                                           default=["Confidence (%)", "Accuracy (%)", "Time (s)"])
         fig_line = go.Figure()
         for metric in selected_metrics:
