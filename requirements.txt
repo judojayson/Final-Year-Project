@@ -11,3 +11,4 @@ plotly
 streamlit-aggrid
 matplotlib
 seaborn
+opencv-python
